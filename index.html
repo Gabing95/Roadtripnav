@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prossima Tappa">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Prossima Tappa — Navigatore di viaggio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --bg: #101A2E;
+    --bg-soft: #16233D;
+    --panel: #1C2C4A;
+    --panel-line: #2C3F63;
+    --ink: #F2EFE6;
+    --ink-muted: #93A0B8;
+    --amber: #F2A93B;
+    --amber-dim: #7A5A26;
+    --teal: #3FA796;
+    --danger: #E0654A;
+    --radius: 16px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; background: var(--bg); color: var(--ink); }
+  body{
+    font-family: 'Source Sans 3', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0) 0;
+  }
+  h1,h2,h3,.display{ font-family:'Barlow Condensed', sans-serif; font-weight:800; letter-spacing:0.02em; text-transform:uppercase; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  .wrap{ max-width: 480px; margin: 0 auto; padding: 18px 16px 60px; }
+
+  header.top{ display:flex; align-items:baseline; justify-content:space-between; padding: 6px 2px 18px; border-bottom: 1px solid var(--panel-line); margin-bottom: 18px; }
+  header.top h1{ font-size: 26px; margin:0; color: var(--ink); }
+  header.top h1 span{ color: var(--amber); }
+  header.top .reset-btn{ background:none; border:1px solid var(--panel-line); color: var(--ink-muted); font-size:12px; padding:6px 10px; border-radius:8px; cursor:pointer; font-family:'Source Sans 3'; }
+  header.top .reset-btn:hover{ border-color: var(--amber); color: var(--amber); }
+
+  /* ---------- SETUP VIEW ---------- */
+  .card{ background: var(--panel); border:1px solid var(--panel-line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card h2{ font-size: 20px; margin: 0 0 10px; color: var(--amber); }
+  .card p{ font-size: 14.5px; line-height:1.55; color: var(--ink-muted); margin: 0 0 10px; }
+  .card ol{ font-size: 14.5px; line-height:1.7; color: var(--ink); padding-left: 20px; margin: 0 0 14px; }
+  .card ol b{ color: var(--amber); }
+
+  .file-drop{ border: 2px dashed var(--panel-line); border-radius: 12px; padding: 22px 16px; text-align:center; margin-bottom: 12px; }
+  .file-drop input{ display:none; }
+  .file-drop label{ display:inline-block; background: var(--amber); color: #1a1204; font-weight:700; padding: 10px 20px; border-radius: 10px; cursor:pointer; font-size: 14px; }
+  .file-drop .fname{ margin-top:10px; font-size:13px; color: var(--teal); font-family:'IBM Plex Mono'; word-break: break-all; }
+
+  .btn-primary{ width:100%; background: var(--amber); color:#1a1204; border:none; padding: 14px; border-radius:12px; font-family:'Barlow Condensed'; font-weight:800; font-size:18px; letter-spacing:0.03em; text-transform:uppercase; cursor:pointer; }
+  .btn-primary:disabled{ background: var(--amber-dim); color:#4a3c22; cursor:not-allowed; }
+  .btn-secondary{ width:100%; background:transparent; color: var(--ink); border:1px solid var(--panel-line); padding: 12px; border-radius:12px; font-size:15px; cursor:pointer; margin-top:8px; }
+  .btn-secondary:hover{ border-color: var(--ink-muted); }
+
+  .error-msg{ color: var(--danger); font-size:13.5px; margin-top:8px; }
+
+  /* ---------- TRIP VIEW ---------- */
+  .day-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:18px; }
+  .day-chip{ flex:0 0 auto; background: var(--panel); border:1px solid var(--panel-line); color: var(--ink-muted); padding:8px 14px; border-radius:20px; font-family:'Barlow Condensed'; font-weight:700; font-size:15px; letter-spacing:0.02em; cursor:pointer; white-space:nowrap; text-transform:uppercase; }
+  .day-chip.active{ background: var(--amber); border-color: var(--amber); color:#1a1204; }
+  .day-chip .count{ font-family:'IBM Plex Mono'; font-size:11px; opacity:0.75; margin-left:6px; }
+
+  /* Gauge */
+  .gauge-card{ background: var(--panel); border:1px solid var(--panel-line); border-radius: var(--radius); padding: 22px 20px 18px; margin-bottom:16px; text-align:center; }
+  .gauge-card.arrived{ border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal) inset; }
+  .gauge-eyebrow{ font-size:12px; letter-spacing:0.12em; color: var(--ink-muted); text-transform:uppercase; font-family:'IBM Plex Mono'; margin-bottom:6px; }
+  .gauge-svg-wrap{ width: 220px; margin: 4px auto 2px; }
+  .gauge-reading{ font-family:'IBM Plex Mono'; font-size: 34px; font-weight:600; color: var(--ink); margin-top: -46px; }
+  .gauge-reading .unit{ font-size:16px; color: var(--ink-muted); margin-left:4px; }
+  .gauge-dir{ font-size:13px; color: var(--amber); font-family:'IBM Plex Mono'; margin-bottom: 4px; }
+  .stop-name{ font-size: 24px; margin: 10px 0 2px; }
+  .stop-desc{ font-size: 13.5px; color: var(--ink-muted); line-height:1.5; max-height: 60px; overflow:hidden; margin-bottom: 14px; }
+  .action-row{ display:flex; gap:10px; }
+  .action-row .btn-primary, .action-row .btn-mark{ flex:1; padding: 13px 8px; font-size:15px; }
+  .alt-nav-row{ display:flex; justify-content:center; gap:18px; margin-top:10px; }
+  .alt-nav-link{ font-size:12.5px; color: var(--ink-muted); text-decoration:underline; cursor:pointer; }
+  .alt-nav-link:hover{ color: var(--amber); }
+  .btn-mark{ background: var(--teal); color:#082720; border:none; border-radius:12px; font-family:'Barlow Condensed'; font-weight:800; text-transform:uppercase; letter-spacing:0.02em; cursor:pointer; }
+  .no-gps{ font-size:13px; color: var(--ink-muted); margin-top:10px; }
+  .no-gps button{ background:none; border:none; color: var(--amber); text-decoration:underline; cursor:pointer; font-size:13px; padding:0; }
+
+  .override-tag{ display:inline-block; background: var(--amber-dim); color: var(--amber); font-size:11px; font-family:'IBM Plex Mono'; padding:3px 8px; border-radius:6px; margin-bottom:8px; cursor:pointer; }
+
+  /* List */
+  .section-label{ font-size: 13px; color: var(--ink-muted); text-transform:uppercase; letter-spacing:0.1em; font-family:'IBM Plex Mono'; margin: 22px 0 10px 2px; }
+  .stop-item{ display:flex; align-items:center; justify-content:space-between; background: var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding: 12px 14px; margin-bottom:8px; cursor:pointer; }
+  .stop-item:hover{ border-color: var(--ink-muted); }
+  .stop-item.selected{ border-color: var(--amber); }
+  .stop-item .left{ flex:1; min-width:0; }
+  .stop-item .left .n{ font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stop-item .left .d{ font-size:12px; color: var(--ink-muted); font-family:'IBM Plex Mono'; }
+  .stop-item .dist{ font-family:'IBM Plex Mono'; font-size:14px; color: var(--amber); margin-left:10px; white-space:nowrap; }
+  .stop-item.visited{ opacity:0.45; }
+  .stop-item.visited .dist{ color: var(--teal); }
+
+  .empty-day{ text-align:center; color: var(--ink-muted); font-size:14.5px; padding: 20px 0; }
+  .progress-foot{ text-align:center; font-family:'IBM Plex Mono'; font-size:12px; color: var(--ink-muted); margin-top: 24px; }
+
+  /* Toolbar */
+  .toolbar-row{ display:flex; gap:8px; margin-bottom: 16px; }
+  .btn-toolbar{ flex:1; background: var(--panel); border:1px solid var(--panel-line); color: var(--ink); padding: 10px 6px; border-radius:10px; font-size:13.5px; cursor:pointer; }
+  .btn-toolbar:hover{ border-color: var(--amber); color: var(--amber); }
+
+  /* Icon buttons on list rows */
+  .stop-item{ gap: 4px; }
+  .icon-btn{ background:none; border:none; color: var(--ink-muted); font-size:16px; padding:6px 7px; cursor:pointer; line-height:1; border-radius:8px; }
+  .icon-btn:hover{ color: var(--amber); background: rgba(242,169,59,0.1); }
+
+  /* Modal */
+  .modal-overlay{ position:fixed; inset:0; background: rgba(8,12,22,0.72); display:flex; align-items:flex-end; justify-content:center; z-index:50; padding: 0; }
+  .modal-card{ background: var(--panel); border:1px solid var(--panel-line); border-radius: 18px 18px 0 0; padding: 22px 20px calc(20px + env(safe-area-inset-bottom,0)); width:100%; max-width: 480px; max-height: 88vh; overflow-y:auto; }
+  .modal-card h3{ font-size:20px; margin: 0 0 16px; color: var(--amber); }
+  .modal-card label{ display:block; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color: var(--ink-muted); font-family:'IBM Plex Mono'; margin: 12px 0 5px; }
+  .modal-card input[type="text"], .modal-card input[type="number"], .modal-card textarea{
+    width:100%; background: var(--bg-soft); border:1px solid var(--panel-line); color: var(--ink); padding:10px 12px; border-radius:10px; font-size:15px; font-family:'Source Sans 3'; resize: vertical;
+  }
+  .modal-card textarea{ min-height: 60px; }
+  .coord-row{ display:flex; gap:8px; }
+  .coord-row input{ flex:1; }
+  .modal-error{ color: var(--danger); font-size:13px; margin-top:10px; }
+  .modal-actions{ display:flex; gap:8px; margin-top:18px; }
+  .modal-actions .btn-primary, .modal-actions .btn-secondary, .modal-actions .btn-danger{ margin-top:0; }
+  .btn-danger{ background:transparent; border:1px solid var(--danger); color: var(--danger); padding: 12px; border-radius:12px; font-size:14px; cursor:pointer; }
+  .btn-danger:hover{ background: rgba(224,101,74,0.12); }
+
+  .hidden{ display:none !important; }
+
+  .storage-warning{ background: rgba(224,101,74,0.12); border:1px solid var(--danger); color: var(--ink); font-size:13px; line-height:1.5; padding: 12px 14px; border-radius: 12px; margin-bottom:16px; }
+  .storage-warning b{ color: var(--danger); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Prossima<br><span>Tappa</span></h1>
+    <button class="reset-btn" id="resetBtn" title="Cancella tutte le tappe e i progressi">Reimposta tutto</button>
+  </header>
+
+  <div class="storage-warning hidden" id="storageWarning">
+    ⚠ Il salvataggio automatico non sembra funzionare su questo dispositivo/hosting. Usa <b>"Esporta backup"</b> prima di chiudere l'app, e <b>"Importa backup"</b> per recuperare i dati la volta successiva.
+  </div>
+
+  <!-- SETUP VIEW -->
+  <div id="setupView">
+    <div class="card">
+      <h2>Come esportare le tue mappe</h2>
+      <ol>
+        <li>Apri ogni mappa su <b>Google My Maps</b> (mymaps.google.com).</li>
+        <li>Menu (☰) → <b>Esporta al file KML/KMZ</b>.</li>
+        <li>Spunta <b>"Esporta in formato KML anziché KMZ"</b> — è importante, i file .kmz non sono supportati qui.</li>
+        <li>Scarica il file per <b>entrambe</b> le mappe (se vuoi, anche livello per livello).</li>
+        <li>Assicurati che ogni livello/cartella sia già nominato per giorno (es. "Giorno 1", "Giorno 2"...).</li>
+      </ol>
+      <p>Carica qui sotto tutti i file .kml che hai esportato — puoi selezionarli insieme. Non preoccuparti se manca qualcosa: potrai aggiungere a mano photo spot, ristoranti o altre tappe anche più avanti, direttamente da qui.</p>
+      <div class="file-drop">
+        <input type="file" id="kmlInput" accept=".kml" multiple>
+        <label for="kmlInput">Scegli i file KML</label>
+        <div class="fname" id="fileNames"></div>
+      </div>
+      <div class="error-msg hidden" id="setupError"></div>
+      <button class="btn-primary" id="loadBtn" disabled>Unisci e avvia il viaggio</button>
+      <button class="btn-secondary" id="importBackupSetupBtn">Ho già un backup — importalo</button>
+      <input type="file" id="backupInputSetup" accept=".json" class="hidden">
+    </div>
+  </div>
+
+  <!-- TRIP VIEW -->
+  <div id="tripView" class="hidden">
+    <div class="toolbar-row">
+      <button class="btn-toolbar" id="addStopBtn">＋ Nuova tappa</button>
+      <button class="btn-toolbar" id="importMoreBtn">Importa altro KML</button>
+    </div>
+    <div class="toolbar-row">
+      <button class="btn-toolbar" id="exportBackupBtn">⬇ Esporta backup</button>
+      <button class="btn-toolbar" id="importBackupBtn">⬆ Importa backup</button>
+    </div>
+    <input type="file" id="addMoreInput" accept=".kml" multiple class="hidden">
+    <input type="file" id="backupInputTrip" accept=".json" class="hidden">
+    <div class="day-row" id="dayRow"></div>
+
+    <div class="gauge-card" id="gaugeCard">
+      <div class="gauge-eyebrow">Prossimo checkpoint consigliato</div>
+      <div class="gauge-svg-wrap">
+        <svg viewBox="0 0 220 130" id="gaugeSvg">
+          <path d="M 14 116 A 96 96 0 0 1 206 116" fill="none" stroke="#2C3F63" stroke-width="14" stroke-linecap="round"/>
+          <path id="gaugeArc" d="M 14 116 A 96 96 0 0 1 206 116" fill="none" stroke="#F2A93B" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 302"/>
+          <g id="needleGroup" transform="rotate(-90 110 116)">
+            <line x1="110" y1="116" x2="110" y2="34" stroke="#F2EFE6" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="110" cy="116" r="7" fill="#F2EFE6"/>
+          </g>
+        </svg>
+      </div>
+      <div class="gauge-reading" id="gaugeReading">—</div>
+      <div class="gauge-dir mono" id="gaugeDir"></div>
+      <div id="overrideTag" class="override-tag hidden">Selezione manuale — tocca per tornare al suggerimento</div>
+      <div class="stop-name" id="stopName">Carica le mappe per iniziare</div>
+      <div class="stop-desc" id="stopDesc"></div>
+      <div class="action-row" id="actionRow">
+        <button class="btn-primary" id="navBtn">Naviga</button>
+        <button class="btn-mark" id="markBtn">Raggiunta ✓</button>
+      </div>
+      <div class="alt-nav-row" id="altNavRow">
+        <a href="#" id="googleMapsLink" class="alt-nav-link">Apri in Google Maps</a>
+        <a href="#" id="copyCoordsLink" class="alt-nav-link">Copia coordinate</a>
+      </div>
+      <div class="no-gps hidden" id="noGps">
+        Posizione non disponibile. <button id="retryGps">Riprova</button>
+      </div>
+    </div>
+
+    <div class="section-label">Tappe del giorno</div>
+    <div id="stopList"></div>
+
+    <div class="progress-foot" id="progressFoot"></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="formModal">
+  <div class="modal-card">
+    <h3 id="modalTitle">Nuova tappa</h3>
+    <label for="fName">Nome</label>
+    <input type="text" id="fName" placeholder="Es. Terrazza panoramica">
+    <label for="fDay">Giorno</label>
+    <input type="text" id="fDay" list="dayList" placeholder="Es. Giorno 2">
+    <datalist id="dayList"></datalist>
+    <label for="fDesc">Descrizione (facoltativa)</label>
+    <textarea id="fDesc" placeholder="Note, orari, cosa ordinare..."></textarea>
+    <label>Coordinate</label>
+    <div class="coord-row">
+      <input type="number" step="any" id="fLat" placeholder="Latitudine">
+      <input type="number" step="any" id="fLng" placeholder="Longitudine">
+    </div>
+    <button type="button" class="btn-secondary" id="useMyPosBtn">Usa la mia posizione attuale</button>
+    <div class="modal-error hidden" id="modalError"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-danger hidden" id="modalDeleteBtn">Elimina</button>
+      <button type="button" class="btn-secondary" id="modalCancelBtn">Annulla</button>
+      <button type="button" class="btn-primary" id="modalSaveBtn">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const setupView = document.getElementById('setupView');
+  const tripView = document.getElementById('tripView');
+  const kmlInput = document.getElementById('kmlInput');
+  const fileNamesEl = document.getElementById('fileNames');
+  const loadBtn = document.getElementById('loadBtn');
+  const setupError = document.getElementById('setupError');
+  const resetBtn = document.getElementById('resetBtn');
+  const storageWarning = document.getElementById('storageWarning');
+  const importBackupSetupBtn = document.getElementById('importBackupSetupBtn');
+  const backupInputSetup = document.getElementById('backupInputSetup');
+  const exportBackupBtn = document.getElementById('exportBackupBtn');
+  const importBackupBtn = document.getElementById('importBackupBtn');
+  const backupInputTrip = document.getElementById('backupInputTrip');
+
+  const dayRow = document.getElementById('dayRow');
+  const gaugeCard = document.getElementById('gaugeCard');
+  const gaugeArc = document.getElementById('gaugeArc');
+  const needleGroup = document.getElementById('needleGroup');
+  const gaugeReading = document.getElementById('gaugeReading');
+  const gaugeDir = document.getElementById('gaugeDir');
+  const overrideTag = document.getElementById('overrideTag');
+  const stopName = document.getElementById('stopName');
+  const stopDesc = document.getElementById('stopDesc');
+  const navBtn = document.getElementById('navBtn');
+  const markBtn = document.getElementById('markBtn');
+  const noGps = document.getElementById('noGps');
+  const retryGps = document.getElementById('retryGps');
+  const googleMapsLink = document.getElementById('googleMapsLink');
+  const copyCoordsLink = document.getElementById('copyCoordsLink');
+  const stopList = document.getElementById('stopList');
+  const progressFoot = document.getElementById('progressFoot');
+
+  const addStopBtn = document.getElementById('addStopBtn');
+  const importMoreBtn = document.getElementById('importMoreBtn');
+  const addMoreInput = document.getElementById('addMoreInput');
+
+  const formModal = document.getElementById('formModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const fName = document.getElementById('fName');
+  const fDay = document.getElementById('fDay');
+  const dayList = document.getElementById('dayList');
+  const fDesc = document.getElementById('fDesc');
+  const fLat = document.getElementById('fLat');
+  const fLng = document.getElementById('fLng');
+  const useMyPosBtn = document.getElementById('useMyPosBtn');
+  const modalError = document.getElementById('modalError');
+  const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalSaveBtn = document.getElementById('modalSaveBtn');
+  let editingId = null;
+
+  let itinerary = [];       // {id, name, desc, lat, lng, day}
+  let visitedIds = new Set();
+  let days = [];
+  let currentDay = null;
+  let overrideId = null;
+  let currentPos = null;
+  let selectedFiles = [];
+
+  const ARC_LEN = 302; // approx path length of the gauge arc
+
+  function genId(){
+    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+  }
+
+  function isDuplicate(p){
+    return itinerary.some(e =>
+      e.day.trim().toLowerCase() === p.day.trim().toLowerCase() &&
+      e.name.trim().toLowerCase() === p.name.trim().toLowerCase() &&
+      Math.abs(e.lat - p.lat) < 0.00002 && Math.abs(e.lng - p.lng) < 0.00002
+    );
+  }
+
+  function haversine(lat1, lon1, lat2, lon2){
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function bearing(lat1, lon1, lat2, lon2){
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }
+
+  function compassLabel(deg){
+    const dirs = ['N','NE','E','SE','S','SO','O','NO'];
+    return dirs[Math.round(deg / 45) % 8];
+  }
+
+  function fmtDist(m){
+    if (m < 1000) return { val: Math.round(m/10)*10, unit: 'm' };
+    return { val: (m/1000).toFixed(1), unit: 'km' };
+  }
+
+  // ---------- KML parsing ----------
+  function parseKML(xmlText, sourceLabel){
+    const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+    if (doc.querySelector('parsererror')) return [];
+    const out = [];
+    function walk(node, folderName){
+      for (const child of Array.from(node.children)){
+        if (child.tagName === 'Folder'){
+          const nameEl = child.querySelector(':scope > name');
+          const fName = nameEl && nameEl.textContent.trim() ? nameEl.textContent.trim() : folderName;
+          walk(child, fName);
+        } else if (child.tagName === 'Placemark'){
+          const nameEl = child.querySelector(':scope > name');
+          const descEl = child.querySelector(':scope > description');
+          const pointEl = child.querySelector(':scope > Point');
+          if (pointEl){
+            const coordEl = pointEl.querySelector('coordinates');
+            if (coordEl){
+              const parts = coordEl.textContent.trim().split(',');
+              const lng = parseFloat(parts[0]);
+              const lat = parseFloat(parts[1]);
+              if (!isNaN(lat) && !isNaN(lng)){
+                const name = nameEl && nameEl.textContent.trim() ? nameEl.textContent.trim() : 'Tappa senza nome';
+                const desc = descEl ? descEl.textContent.trim() : '';
+                const day = folderName || sourceLabel;
+                out.push({ id: genId(), name, desc, lat, lng, day });
+              }
+            }
+          }
+        } else {
+          walk(child, folderName);
+        }
+      }
+    }
+    walk(doc.documentElement, sourceLabel);
+    return out;
+  }
+
+  // ---------- Storage (uses Claude's storage when embedded, falls back to
+  // the browser's own storage when opened as a standalone file/page) ----------
+  const hasClaudeStorage = !!(window.storage && typeof window.storage.get === 'function');
+
+  async function storageGet(key){
+    if (hasClaudeStorage){
+      try { return await window.storage.get(key); } catch(e){ return null; }
+    }
+    try {
+      const raw = localStorage.getItem('rtn:' + key);
+      return raw !== null ? { key, value: raw } : null;
+    } catch(e){ return null; }
+  }
+  async function storageSet(key, value){
+    if (hasClaudeStorage){
+      try { return await window.storage.set(key, value); } catch(e){ return null; }
+    }
+    try { localStorage.setItem('rtn:' + key, value); return { key, value }; } catch(e){ return null; }
+  }
+  async function storageDelete(key){
+    if (hasClaudeStorage){
+      try { return await window.storage.delete(key); } catch(e){ return null; }
+    }
+    try { localStorage.removeItem('rtn:' + key); return { key, deleted: true }; } catch(e){ return null; }
+  }
+
+  async function testStoragePersistence(){
+    const probeKey = 'storage-roundtrip-test';
+    const probeVal = 'ok-' + Date.now();
+    try {
+      await storageSet(probeKey, probeVal);
+      const r = await storageGet(probeKey);
+      return !!(r && r.value === probeVal);
+    } catch(e){ return false; }
+  }
+
+  async function saveItinerary(){
+    try { await storageSet('itinerary-data', JSON.stringify(itinerary)); } catch(e){ console.error(e); }
+  }
+  async function saveVisited(){
+    try { await storageSet('visited-ids', JSON.stringify(Array.from(visitedIds))); } catch(e){ console.error(e); }
+  }
+  async function loadFromStorage(){
+    try {
+      const it = await storageGet('itinerary-data');
+      if (it && it.value){
+        itinerary = JSON.parse(it.value);
+        try {
+          const vi = await storageGet('visited-ids');
+          if (vi && vi.value) visitedIds = new Set(JSON.parse(vi.value));
+        } catch(e){ /* no visited yet */ }
+        return true;
+      }
+    } catch(e){ /* nothing stored */ }
+    return false;
+  }
+
+  // ---------- File handling ----------
+  kmlInput.addEventListener('change', () => {
+    selectedFiles = Array.from(kmlInput.files);
+    fileNamesEl.textContent = selectedFiles.map(f => f.name).join(', ');
+    loadBtn.disabled = selectedFiles.length === 0;
+    setupError.classList.add('hidden');
+  });
+
+  loadBtn.addEventListener('click', async () => {
+    setupError.classList.add('hidden');
+    try {
+      const all = [];
+      for (const file of selectedFiles){
+        const text = await file.text();
+        const label = file.name.replace(/\.kml$/i, '');
+        all.push(...parseKML(text, label));
+      }
+      if (all.length === 0){
+        setupError.textContent = 'Non ho trovato nessun segnapunto valido in questi file. Controlla di aver esportato in KML (non KMZ).';
+        setupError.classList.remove('hidden');
+        return;
+      }
+      itinerary = all;
+      visitedIds = new Set();
+      await saveItinerary();
+      await saveVisited();
+      startTrip();
+    } catch(e){
+      setupError.textContent = 'Errore nella lettura dei file: ' + e.message;
+      setupError.classList.remove('hidden');
+    }
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    if (!confirm('Vuoi cancellare TUTTO il viaggio caricato (tappe e progressi) e ricominciare da capo?')) return;
+    try {
+      await storageDelete('itinerary-data');
+      await storageDelete('visited-ids');
+    } catch(e){}
+    itinerary = []; visitedIds = new Set(); days = []; currentDay = null; overrideId = null;
+    tripView.classList.add('hidden');
+    setupView.classList.remove('hidden');
+    kmlInput.value = ''; fileNamesEl.textContent = ''; loadBtn.disabled = true;
+  });
+
+  importMoreBtn.addEventListener('click', () => addMoreInput.click());
+
+  addMoreInput.addEventListener('change', async () => {
+    const files = Array.from(addMoreInput.files);
+    if (files.length === 0) return;
+    try {
+      let added = 0, skipped = 0;
+      for (const file of files){
+        const text = await file.text();
+        const label = file.name.replace(/\.kml$/i, '');
+        const parsed = parseKML(text, label);
+        for (const p of parsed){
+          if (isDuplicate(p)) { skipped++; continue; }
+          itinerary.push(p);
+          added++;
+        }
+      }
+      await saveItinerary();
+      computeDays();
+      if (!currentDay || !days.includes(currentDay)) currentDay = pickDefaultDay();
+      renderAll();
+      alert('Aggiunte ' + added + ' nuove tappe' + (skipped > 0 ? ' (' + skipped + ' già presenti, ignorate)' : '') + '.');
+    } catch(e){
+      alert('Errore nella lettura dei file: ' + e.message);
+    }
+    addMoreInput.value = '';
+  });
+
+  // ---------- Backup export / import ----------
+  function downloadJSON(filename, dataObj){
+    try {
+      const blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch(e){
+      alert('Impossibile creare il file di backup: ' + e.message);
+    }
+  }
+
+  exportBackupBtn.addEventListener('click', () => {
+    downloadJSON('prossima-tappa-backup.json', {
+      itinerary,
+      visitedIds: Array.from(visitedIds),
+      exportedAt: new Date().toISOString()
+    });
+  });
+
+  function applyBackupData(data){
+    if (!data || !Array.isArray(data.itinerary)){
+      alert('File di backup non valido.');
+      return false;
+    }
+    itinerary = data.itinerary;
+    visitedIds = new Set(Array.isArray(data.visitedIds) ? data.visitedIds : []);
+    return true;
+  }
+
+  async function handleBackupFile(file){
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!applyBackupData(data)) return;
+      await saveItinerary();
+      await saveVisited();
+      computeDays();
+      currentDay = pickDefaultDay();
+      overrideId = null;
+      setupView.classList.add('hidden');
+      tripView.classList.remove('hidden');
+      renderAll();
+      startGeolocation();
+    } catch(e){
+      alert('Errore nella lettura del backup: ' + e.message);
+    }
+  }
+
+  importBackupSetupBtn.addEventListener('click', () => backupInputSetup.click());
+  backupInputSetup.addEventListener('change', () => {
+    const f = backupInputSetup.files[0];
+    if (f) handleBackupFile(f);
+    backupInputSetup.value = '';
+  });
+
+  importBackupBtn.addEventListener('click', () => backupInputTrip.click());
+  backupInputTrip.addEventListener('change', () => {
+    const f = backupInputTrip.files[0];
+    if (f){
+      if (!confirm('Importare questo backup sovrascriverà le tappe e i progressi attuali. Continuare?')){ backupInputTrip.value = ''; return; }
+      handleBackupFile(f);
+    }
+    backupInputTrip.value = '';
+  });
+
+  // ---------- Add / edit / delete form ----------
+  function populateDayList(){
+    dayList.innerHTML = days.map(d => '<option value="' + d.replace(/"/g,'&quot;') + '">').join('');
+  }
+
+  function showModal(){ formModal.classList.remove('hidden'); modalError.classList.add('hidden'); }
+  function hideModal(){ formModal.classList.add('hidden'); }
+
+  function openAddForm(){
+    editingId = null;
+    modalTitle.textContent = 'Nuova tappa';
+    fName.value = '';
+    fDay.value = currentDay || (days[0] || '');
+    fDesc.value = '';
+    fLat.value = currentPos ? currentPos.lat.toFixed(6) : '';
+    fLng.value = currentPos ? currentPos.lng.toFixed(6) : '';
+    modalDeleteBtn.classList.add('hidden');
+    populateDayList();
+    showModal();
+  }
+
+  function openEditForm(item){
+    editingId = item.id;
+    modalTitle.textContent = 'Modifica tappa';
+    fName.value = item.name;
+    fDay.value = item.day;
+    fDesc.value = item.desc || '';
+    fLat.value = item.lat;
+    fLng.value = item.lng;
+    modalDeleteBtn.classList.remove('hidden');
+    populateDayList();
+    showModal();
+  }
+
+  addStopBtn.addEventListener('click', openAddForm);
+  modalCancelBtn.addEventListener('click', hideModal);
+
+  useMyPosBtn.addEventListener('click', () => {
+    if (!currentPos){
+      modalError.textContent = 'Posizione non ancora disponibile. Assicurati che il GPS sia attivo.';
+      modalError.classList.remove('hidden');
+      return;
+    }
+    fLat.value = currentPos.lat.toFixed(6);
+    fLng.value = currentPos.lng.toFixed(6);
+  });
+
+  modalSaveBtn.addEventListener('click', async () => {
+    const name = fName.value.trim();
+    const day = fDay.value.trim();
+    const desc = fDesc.value.trim();
+    const lat = parseFloat(fLat.value);
+    const lng = parseFloat(fLng.value);
+    if (!name || !day){
+      modalError.textContent = 'Nome e giorno sono obbligatori.';
+      modalError.classList.remove('hidden');
+      return;
+    }
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180){
+      modalError.textContent = 'Coordinate non valide. Usa "Usa la mia posizione attuale" oppure inserisci lat/lng corrette.';
+      modalError.classList.remove('hidden');
+      return;
+    }
+    if (editingId){
+      const item = itinerary.find(x => x.id === editingId);
+      if (item){ item.name = name; item.day = day; item.desc = desc; item.lat = lat; item.lng = lng; }
+    } else {
+      itinerary.push({ id: genId(), name, day, desc, lat, lng });
+    }
+    await saveItinerary();
+    computeDays();
+    if (!currentDay || !days.includes(currentDay)) currentDay = day;
+    hideModal();
+    renderAll();
+  });
+
+  modalDeleteBtn.addEventListener('click', async () => {
+    if (!editingId) return;
+    if (!confirm('Eliminare definitivamente questa tappa?')) return;
+    itinerary = itinerary.filter(x => x.id !== editingId);
+    visitedIds.delete(editingId);
+    if (overrideId === editingId) overrideId = null;
+    await saveItinerary();
+    await saveVisited();
+    computeDays();
+    if (!currentDay || !days.includes(currentDay)) currentDay = pickDefaultDay();
+    hideModal();
+    renderAll();
+  });
+
+  // Delegated clicks for edit/undo icons inside the stop list
+  stopList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.icon-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const item = itinerary.find(x => x.id === id);
+    if (!item) return;
+    if (action === 'edit'){ openEditForm(item); }
+    else if (action === 'undo'){ visitedIds.delete(id); saveVisited().then(renderAll); }
+  });
+
+  // ---------- Trip view ----------
+  function computeDays(){
+    const set = new Set(itinerary.map(p => p.day));
+    days = Array.from(set);
+  }
+
+  function pendingInDay(day){
+    return itinerary.filter(p => p.day === day && !visitedIds.has(p.id));
+  }
+
+  function pickDefaultDay(){
+    for (const d of days){
+      if (pendingInDay(d).length > 0) return d;
+    }
+    return days[0] || null;
+  }
+
+  function renderDayChips(){
+    dayRow.innerHTML = '';
+    days.forEach(d => {
+      const total = itinerary.filter(p => p.day === d).length;
+      const pending = pendingInDay(d).length;
+      const chip = document.createElement('div');
+      chip.className = 'day-chip' + (d === currentDay ? ' active' : '');
+      chip.innerHTML = d + '<span class="count">' + (total - pending) + '/' + total + '</span>';
+      chip.addEventListener('click', () => { currentDay = d; overrideId = null; renderAll(); });
+      dayRow.appendChild(chip);
+    });
+  }
+
+  function distanceSortedStops(){
+    const pending = pendingInDay(currentDay);
+    if (currentPos){
+      return pending.map(p => ({
+        ...p,
+        dist: haversine(currentPos.lat, currentPos.lng, p.lat, p.lng),
+        brg: bearing(currentPos.lat, currentPos.lng, p.lat, p.lng)
+      })).sort((a,b) => a.dist - b.dist);
+    }
+    return pending.map(p => ({ ...p, dist: null, brg: null }));
+  }
+
+  function currentTarget(sorted){
+    if (overrideId){
+      const found = sorted.find(p => p.id === overrideId);
+      if (found) return found;
+    }
+    return sorted[0] || null;
+  }
+
+  function updateGauge(target, sorted){
+    if (!target){
+      gaugeCard.classList.remove('arrived');
+      stopName.textContent = sorted.length === 0 ? 'Tutte le tappe di oggi raggiunte 🎉' : 'Nessuna tappa disponibile';
+      stopDesc.textContent = '';
+      gaugeReading.textContent = '—';
+      gaugeDir.textContent = '';
+      gaugeArc.setAttribute('stroke-dasharray', '0 ' + ARC_LEN);
+      needleGroup.setAttribute('transform', 'rotate(-90 110 116)');
+      overrideTag.classList.add('hidden');
+      navBtn.disabled = true; markBtn.disabled = true;
+      document.getElementById('altNavRow').classList.add('hidden');
+      return;
+    }
+    navBtn.disabled = false; markBtn.disabled = false;
+    document.getElementById('altNavRow').classList.remove('hidden');
+    stopName.textContent = target.name;
+    stopDesc.textContent = target.desc || '';
+    overrideTag.classList.toggle('hidden', !overrideId);
+
+    if (target.dist == null){
+      gaugeReading.textContent = '—';
+      gaugeDir.textContent = 'GPS non attivo';
+      gaugeArc.setAttribute('stroke-dasharray', '0 ' + ARC_LEN);
+      needleGroup.setAttribute('transform', 'rotate(-90 110 116)');
+      gaugeCard.classList.remove('arrived');
+      return;
+    }
+    const f = fmtDist(target.dist);
+    gaugeReading.innerHTML = f.val + '<span class="unit">' + f.unit + '</span>';
+    gaugeDir.textContent = compassLabel(target.brg) + ' · ' + Math.round(target.brg) + '°';
+
+    const maxD = 15000; // scale reference: 15km = full arc
+    const frac = Math.max(0, Math.min(1, Math.log10(target.dist/10 + 1) / Math.log10(maxD/10 + 1)));
+    gaugeArc.setAttribute('stroke-dasharray', (frac*ARC_LEN) + ' ' + ARC_LEN);
+    const angle = -90 + frac*180;
+    needleGroup.setAttribute('transform', 'rotate(' + angle + ' 110 116)');
+
+    gaugeCard.classList.toggle('arrived', target.dist < 100);
+    if (target.dist < 100) gaugeDir.textContent = 'Sei arrivato';
+  }
+
+  function renderStopList(sorted, target){
+    stopList.innerHTML = '';
+    const visited = itinerary.filter(p => p.day === currentDay && visitedIds.has(p.id));
+    if (sorted.length === 0 && visited.length === 0){
+      stopList.innerHTML = '<div class="empty-day">Nessuna tappa in questo giorno.</div>';
+      progressFoot.textContent = '';
+      return;
+    }
+    sorted.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'stop-item' + (target && p.id === target.id ? ' selected' : '');
+      const distTxt = p.dist == null ? '' : (fmtDist(p.dist).val + ' ' + fmtDist(p.dist).unit);
+      row.innerHTML = '<div class="left"><div class="n">' + escapeHtml(p.name) + '</div><div class="d">' + escapeHtml(p.day) + '</div></div><div class="dist">' + distTxt + '</div>' +
+        '<button class="icon-btn" data-action="edit" data-id="' + p.id + '" title="Modifica">✎</button>';
+      row.addEventListener('click', (e) => { if (e.target.closest('.icon-btn')) return; overrideId = p.id; renderAll(); });
+      stopList.appendChild(row);
+    });
+    visited.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'stop-item visited';
+      row.innerHTML = '<div class="left"><div class="n">' + escapeHtml(p.name) + '</div><div class="d">' + escapeHtml(p.day) + '</div></div><div class="dist">✓</div>' +
+        '<button class="icon-btn" data-action="undo" data-id="' + p.id + '" title="Annulla visita">↺</button>' +
+        '<button class="icon-btn" data-action="edit" data-id="' + p.id + '" title="Modifica">✎</button>';
+      stopList.appendChild(row);
+    });
+    const totalDay = itinerary.filter(p => p.day === currentDay).length;
+    progressFoot.textContent = 'Giorno "' + currentDay + '": ' + visited.length + ' / ' + totalDay + ' tappe raggiunte';
+  }
+
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderAll(){
+    renderDayChips();
+    const sorted = distanceSortedStops();
+    const target = currentTarget(sorted);
+    updateGauge(target, sorted);
+    renderStopList(sorted, target);
+    overrideTag.onclick = () => { overrideId = null; renderAll(); };
+
+    navBtn.onclick = () => {
+      if (!target) return;
+      // Direct navigation (not window.open) — popups get silently blocked by
+      // lightweight in-app browsers (e.g. Documents by Readdle). Apple Maps
+      // is the default since it's always installed on iPhone and hands off
+      // cleanly to CarPlay.
+      const appleUrl = 'https://maps.apple.com/?daddr=' + target.lat + ',' + target.lng + '&dirflg=d';
+      window.location.href = appleUrl;
+    };
+    googleMapsLink.onclick = (e) => {
+      e.preventDefault();
+      if (!target) return;
+      const googleUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + target.lat + ',' + target.lng + '&travelmode=driving';
+      window.location.href = googleUrl;
+    };
+    copyCoordsLink.onclick = async (e) => {
+      e.preventDefault();
+      if (!target) return;
+      const coords = target.lat.toFixed(6) + ', ' + target.lng.toFixed(6);
+      try {
+        await navigator.clipboard.writeText(coords);
+        copyCoordsLink.textContent = 'Copiate ✓';
+        setTimeout(() => { copyCoordsLink.textContent = 'Copia coordinate'; }, 1500);
+      } catch(e){
+        prompt('Copia manualmente le coordinate:', coords);
+      }
+    };
+    markBtn.onclick = async () => {
+      if (!target) return;
+      visitedIds.add(target.id);
+      if (overrideId === target.id) overrideId = null;
+      await saveVisited();
+      renderAll();
+    };
+  }
+
+  function startTrip(){
+    computeDays();
+    currentDay = pickDefaultDay();
+    setupView.classList.add('hidden');
+    tripView.classList.remove('hidden');
+    renderAll();
+    startGeolocation();
+  }
+
+  // ---------- Geolocation ----------
+  let watchId = null;
+  function startGeolocation(){
+    if (!navigator.geolocation){
+      noGps.classList.remove('hidden');
+      return;
+    }
+    noGps.classList.add('hidden');
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        currentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        noGps.classList.add('hidden');
+        renderAll();
+      },
+      err => {
+        noGps.classList.remove('hidden');
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  }
+  retryGps.addEventListener('click', startGeolocation);
+
+  // ---------- Init ----------
+  (async function init(){
+    const persistOk = await testStoragePersistence();
+    if (!persistOk){
+      storageWarning.classList.remove('hidden');
+    }
+    const has = await loadFromStorage();
+    if (has && itinerary.length > 0){
+      startTrip();
+    }
+  })();
+})();
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {
+      // Standalone/offline registration can fail silently on some hosts; the app still works online.
+    });
+  });
+}
+</script>
+</body>
+</html>
